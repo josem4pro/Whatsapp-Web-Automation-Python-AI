@@ -26,6 +26,8 @@ from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.common.exceptions import NoSuchElementException, StaleElementReferenceException
+from webdriver_manager.chrome import ChromeDriverManager
+from selenium.webdriver.chrome.service import Service
 import os
 import re
 import hashlib
@@ -35,7 +37,7 @@ import traceback
 ########
 # Constants
 ########
-CHAT_NAME = "Mario Rossi"  # Use the full name of the chat, including any spaces
+CHAT_NAME = "+54 9 223 599-4524"  # Use the full name of the chat, including any spaces
 WAIT_TIME = 30  # Wait time for page elements
 MESSAGES_FILE = 'messages.json'  # Path to the messages file
 DEFAULT_MONTHS_TO_EXTRACT = 1  # Default months to extract if no messages file exists
@@ -58,23 +60,37 @@ current_date = None  # Track the current date globally
 # Configure Chrome driver
 ########
 directory_path = os.getcwd()
-driver_location = os.path.join(directory_path, 'chrome', 'chromedriver')
-binary_location = os.path.join(directory_path, 'chrome', 'chrome')
+userdata_path = os.path.join(directory_path, 'chrome', 'userdata')
+
+# Create userdata directory if it doesn't exist
+os.makedirs(userdata_path, exist_ok=True)
+
 options = Options()
-options.binary_location = binary_location
-options.add_argument("user-data-dir=" + os.path.join(directory_path, 'chrome', 'userdata'))
+# Uncomment the line below if you have a custom Chrome binary
+# options.binary_location = "/path/to/chrome/binary"
+options.add_argument("user-data-dir=" + userdata_path)
+options.add_argument("--disable-blink-features=AutomationControlled")
+options.add_argument("--remote-debugging-port=9222")  # Enable Chrome DevTools debugging
 
 ########
-# Start browser
+# Start browser - webdriver-manager will download ChromeDriver automatically
 ########
-service = webdriver.chrome.service.Service(driver_location)
-browser = webdriver.Chrome(service=service, options=options)
-browser.maximize_window()
+try:
+    service = Service(ChromeDriverManager().install())
+    browser = webdriver.Chrome(service=service, options=options)
+    browser.maximize_window()
+    print("Chrome browser started successfully")
+except Exception as e:
+    print(f"Error starting Chrome browser: {e}")
+    raise
+
 browser.get('https://web.whatsapp.com/')
 
-# Wait for page to load
+# Wait for page to load - usar selector más robusto
 wait = WebDriverWait(browser, 600)
-wait.until(EC.presence_of_element_located((By.XPATH, '//*[@id="app"]/div/div/div[3]/header/div[2]/div/span/div[3]/div/span')))
+# Esperar a que la app principal esté cargada
+wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, '[role="application"]')))
+print("✓ WhatsApp Web cargado")
 
 ########
 # Function Definitions
